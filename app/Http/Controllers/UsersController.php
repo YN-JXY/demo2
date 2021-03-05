@@ -6,18 +6,33 @@ use Illuminate\Http\Request;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\Rules\Unique;
+
 
 class UsersController extends Controller
 {
     public function __construct()
     {
         $this->middleware('auth',[
-            'except' => ['create','store']
+            'except' => ['create','store','index','confirmEmail']
         ]);
         $this->middleware('guest', [
             'only' => ['create']
         ]);
+    }
+
+    public function confirmEmail($token)
+    {
+        $user = User::where('activation_token',$token)->firstOrFail();
+
+        $user->activated = true;
+        $user->activation_token = null;
+        $user->save();
+
+        Auth::login($user);
+        session()->flash('success','恭喜你，激活成功!');
+        return redirect()->route('users.show',[$user]);
     }
 
     //渲染用户注册界面
@@ -36,7 +51,28 @@ class UsersController extends Controller
     //显示用户个人信息页面
     public function show(User $user)
     {
-        return view('users.show',compact('user'));
+        $statuses = $user->statuses()
+                           ->orderBy('created_at', 'desc')
+                           ->paginate(10);
+        return view('users.show', compact('user', 'statuses'));
+    }
+
+    protected function sendEmailConfirmationTo($user)
+    {
+        $view = 'emails.confirm';
+        $data = compact('user');
+        $from = 'summer@example.com';
+        $name = 'Summer';
+        $to = $user->email;
+        $subject = "感谢注册 Weibo 应用！请确认你的邮箱。";
+
+        // Mail::send($view, $data, function ($message) use ($from, $name, $to, $subject) {
+        //     $message->from($from, $name)->to($to)->subject($subject);
+        // });
+
+        Mail::send($view, $data, function ($message) use ($from, $name, $to, $subject) {
+            $message->from($from, $name)->to($to)->subject($subject);
+        });
     }
 
     //创建用户
@@ -54,11 +90,10 @@ class UsersController extends Controller
             'password' => bcrypt($request->password),
         ]);
 
-        Auth::login($user);
+        $this->sendEmailConfirmationTo($user);
 
-        session()->flash('success','欢迎，您将在这里开启一段新的旅程~');
-
-        return redirect()->route('users.show',[$user]);
+        session()->flash('success', '验证邮件已发送到你的注册邮箱上，请注意查收。');
+        return redirect('/');
     }
 
     //渲染更新用户个人资料的页面
@@ -89,8 +124,25 @@ class UsersController extends Controller
     }
 
     //删除用户
-    public function destroy()
+    public function destroy(User $user)
     {
+        $this->authorize('destroy',$user);
+        $user->delete();
+        session()->flash('success','成功删除用户！');
+        return back();
+    }
 
+    public function followings(User $user)
+    {
+        $users = $user->followings()->paginate(30);
+        $title = $user->name . '关注的人';
+        return view('users.show_follow',compact('users','title'));
+    }
+
+    public function followers(User $user)
+    {
+        $users = $user->followers()->paginate(30);
+        $title = $user->name . '的粉丝';
+        return view('users.show_follow',compact('users','title'));
     }
 }

@@ -5,6 +5,7 @@ use App\Http\Controllers\StaticPagesController as StaticPages;
 use App\Http\Controllers\UsersController as Users;
 use App\Http\Controllers\SessionsController as Sessions;
 use Illuminate\Contracts\Session\Session;
+use Illuminate\Support\Facades\Auth;
 
 /*
 |--------------------------------------------------------------------------
@@ -52,4 +53,25 @@ Route::post('login',[Sessions::class,'store']) -> name('login');
 
 //实现用户退出
 Route::delete('logout',[Sessions::class,'destroy']) -> name('logout');
+
+//发送邮件
+Route::get('signup/confirm/{token}',[Users::class,'confirmEmail'])->name('confirm_email');
 //与用户相关的路由end
+
+// Auth::routes();
+
+// Route::get('/home', 'HomeController@index')->name('home');
+
+Route::get('password/reset', 'Auth\ForgotPasswordController@showLinkRequestForm')->name('password.request');
+Route::post('password/email', 'Auth\ForgotPasswordController@sendResetLinkEmail')->name('password.email');
+Route::get('password/reset/{token}', 'Auth\ResetPasswordController@showResetForm')->name('password.reset');
+Route::post('password/reset', 'Auth\ResetPasswordController@reset')->name('password.update');
+
+
+Route::resource('statuses','StatusesController',['only' => ['store','destroy']]);
+
+Route::get('/users/{user}/followings', 'UsersController@followings')->name('users.followings');
+Route::get('/users/{user}/followers', 'UsersController@followers')->name('users.followers');
+
+Route::post('/users/followers/{user}', 'FollowersController@store')->name('followers.store');
+Route::delete('/users/followers/{user}', 'FollowersController@destroy')->name('followers.destroy');

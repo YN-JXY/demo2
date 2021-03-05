@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 //静态页面控制器
 class StaticPagesController extends Controller
@@ -10,7 +11,11 @@ class StaticPagesController extends Controller
     //渲染首页视图
     public function home()
     {
-        return view('static_pages/home');
+        $feed_items = [];
+        if(Auth::check()){
+            $feed_items = Auth::user()->feed()->paginate(30);
+        }
+        return view('static_pages/home',compact('feed_items'));
     }
 
     //渲染帮助页视图
